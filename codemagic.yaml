@@ -1,0 +1,65 @@
+workflows:
+  # ==========================================
+  # Flujo de trabajo 1: compilación sin firma (para verificar si el código puede compilarse)
+  # Adecuado para probar primero si hay problemas de compilación, genera un .ipa no instalable
+  # ==========================================
+  ios-unsigned:
+    name: iOS Unsigned Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable          # Usar la versión estable más reciente, compatible con tu Dart 3.10.7
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Build unsigned IPA
+        script: |
+          flutter build ios --release --no-codesign
+          # Empaquetar manualmente el .app generado en un .ipa sin firmar (opcional)
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r ../ipa/Runner-unsigned.ipa Payload
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+  # ==========================================
+  # Flujo de trabajo 2: compilación con firma (requiere cuenta de desarrollador de Apple)
+  # Genera un .ipa instalable en dispositivos reales o publicable en TestFlight/App Store
+  # ==========================================
+  ios-signed:
+    name: iOS Signed Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      # Los siguientes integrations deben coincidir con el nombre de la integración configurada en Codemagic
+      # Primero debes configurar App Store Connect API Key en la configuración del equipo de Codemagic y habilitar la integración con Developer Portal
+      ios_signing:
+        distribution_type: app_store    # O ad_hoc, development
+        bundle_identifier: com.example.efsiscont  # Reemplazar con el bundle ID real de tu proyecto
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=1 \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
