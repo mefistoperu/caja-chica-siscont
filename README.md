@@ -280,6 +280,25 @@ flutter test test/ws_integration_test.dart \
   --dart-define=WS_CLAVE=DEMO
 ```
 
+## Lectura de comprobantes con IA
+
+La app no guarda claves de IA. Al adjuntar una foto o un PDF, el archivo se
+envía a la operación `analizaradjunto` del WS (`assets/ws/ws.php`), que guarda
+el adjunto en el servidor y lo analiza con la IA configurada allí (Groq, con
+respaldo local/Gemini según `app/Models/comprobantepdf.php`). La respuesta se
+convierte al formulario de compras y el usuario revisa/corrige antes de guardar.
+
+Requisitos en el servidor:
+
+- Configurar la clave de Groq en el backend (por ejemplo `GROQ_API_KEY`); no en
+  `lib/src/config.dart` ni en la app compilada.
+- PHP con permiso de escritura en `assets/subidas/vouchers` y límite de subida
+  de al menos 8 MB (`upload_max_filesize`/`post_max_size`).
+- El análisis puede tardar; el cliente espera hasta 180 segundos.
+
+Si el backend no puede leer el comprobante, la app ofrece llenarlo a mano sin
+perder el archivo adjunto.
+
 ## Notas de plataforma
 
 - Android ya tiene `INTERNET` y `usesCleartextTraffic` habilitados para HTTP.

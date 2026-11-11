@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../models/comprobante.dart';
 import '../models/tercero_local.dart';
-import '../services/groq_servicio.dart';
+import '../services/analisis_comprobante.dart';
 import '../services/mapeo_comprobante.dart';
+import '../storage/archivos.dart';
 import '../storage/repositorio.dart';
 import '../theme/tema.dart';
 import '../widgets/entrada.dart';
@@ -484,7 +485,12 @@ class _ComprobanteFormPageState extends State<ComprobanteFormPage> {
         for (final clave in camposConfigurados) clave: _ctrl[clave]!.text,
       };
       final tipoCambioSeleccionado = _numero(_ctrl['tc']!.text);
-      final r = await const GroqServicio().analizar(_c.archivo);
+      final bytes = await leerDocumento(_c.archivo);
+    if (bytes.isEmpty) throw IaException('No se encontro el archivo del comprobante.');
+    final r = await const AnalisisComprobante().analizar(
+      bytes: bytes,
+      nombre: nombreDeReferencia(_c.archivo),
+    );
       final leido = comprobanteDesdeIa(
         r.datos,
         archivo: _c.archivo,

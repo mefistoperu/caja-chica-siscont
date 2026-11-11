@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 ///
 /// Los usuarios se validan en el Web Service. Las conexiones y los
 /// comprobantes se guardan en el dispositivo.
-/// La otra salida a internet es Groq (OCR) y el envio del Excel por WhatsApp.
+/// El analisis de comprobantes (OCR e interpretacion con IA) lo realiza el
+/// Web Service; la app solo envia el archivo. La otra salida a internet es el
+/// envio del Excel por WhatsApp.
 class AppConfig {
   const AppConfig._();
 
@@ -45,23 +47,6 @@ class AppConfig {
 
   /// En web se usa el proxy; en movil se consulta directamente el servicio.
   static String get licenciaUrl => kIsWeb ? licenciaUrlWeb : licenciaUrlDirecta;
-
-  // ---------------------------------------------------------------- Groq ---
-  static const String groqUrl =
-      'https://api.groq.com/openai/v1/chat/completions';
-
-  /// Claves del plan gratuito de Groq. Si una se agota (HTTP 429) se pasa a la
-  /// siguiente automaticamente.
-  static const List<String> groqKeys = <String>['GROQ_KEY_1', 'GROQ_KEY_2'];
-
-  /// Unico modelo con vision (imagenes): tambien transcribe el texto.
-  static const String modeloVision = 'qwen/qwen3.8-27b';
-
-  /// Modelos de texto para PDF con capa de texto / reintento de estructuracion.
-  static const List<String> modelosTexto = <String>[
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-  ];
 
   /// Copias de seguridad en el telefono.
   static const String carpetaDocumentos = 'documentos';

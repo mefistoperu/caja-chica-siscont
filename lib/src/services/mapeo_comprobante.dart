@@ -170,6 +170,93 @@ String _tipDocIdentidad(String crudo, String ruc) {
   return '6';
 }
 
+/// Convierte el objeto `comprobante` que devuelve la operacion
+/// `analizaradjunto` del WS (estructura anidada `datos`/`impuestos`/`detalle`)
+/// al mapa plano que consume [comprobanteDesdeIa].
+Map<String, dynamic> datosPlanosDesdeWs(Map<String, dynamic> comprobante) {
+  Map<String, dynamic> mapa(dynamic valor) {
+    if (valor is Map) return Map<String, dynamic>.from(valor);
+    return <String, dynamic>{};
+  }
+
+  double numeroDe(dynamic valor) {
+    if (valor is num) return valor.toDouble();
+    if (valor is Map) {
+      return numeroDe(valor['monto'] ?? valor['importe'] ?? valor['total']);
+    }
+    var s = '${valor ?? ''}'.trim();
+    if (s.isEmpty) return 0;
+    s = s.replaceAll(RegExp(r'[^0-9,.\-]'), '');
+    if (s.contains(',') && s.contains('.')) {
+      s = s.replaceAll(',', '');
+    } else if (s.contains(',')) {
+      s = s.replaceAll(',', '.');
+    }
+    return double.tryParse(s) ?? 0;
+  }
+
+  final datos = mapa(comprobante['datos']);
+  final impuestos = mapa(comprobante['impuestos']);
+  final tipoDocumento = '${datos['tipo_comprobante'] ?? ''}'.trim().isNotEmpty
+      ? datos['tipo_comprobante']
+      : (comprobante['tipo'] ?? '');
+
+  final numeroComprobante = '${datos['numero_comprobante'] ?? ''}'.trim();
+  final serie = '${datos['serie'] ?? ''}'.trim();
+  final numero = '${datos['numero'] ?? ''}'.trim();
+  final serieNumero = numeroComprobante.isNotEmpty
+      ? numeroComprobante
+      : <String>[serie, numero].where((e) => e.isNotEmpty).join('-');
+
+  final detalleWs = comprobante['detalle'];
+  final listaItems = detalleWs is List && detalleWs.isNotEmpty
+      ? detalleWs
+      : (datos['detalle_items'] is List
+            ? datos['detalle_items'] as List
+            : const <dynamic>[]);
+  final items = <Map<String, dynamic>>[];
+  for (final item in listaItems) {
+    final m = mapa(item);
+    if (m.isEmpty) continue;
+    items.add(<String, dynamic>{
+      'descripcion': '${m['descripcion'] ?? ''}'.trim(),
+      'cantidad': numeroDe(m['cantidad']),
+      'precio': numeroDe(m['precio']),
+      'importe': numeroDe(m['importe']),
+    });
+  }
+
+  return <String, dynamic>{
+    'tipo_documento': tipoDocumento,
+    'serie_numero': serieNumero,
+    'fecha_emision': '${datos['fecha_emision'] ?? ''}',
+    'fecha_vencimiento': '${datos['fecha_vencimiento'] ?? ''}',
+    'ruc': '${datos['ruc_emisor'] ?? ''}',
+    'razon_social': '${datos['razon_social'] ?? ''}',
+    'moneda': '${impuestos['moneda'] ?? datos['moneda'] ?? ''}',
+    'tipo_cambio': numeroDe(datos['tipo_cambio']),
+    'base_gravada': numeroDe(impuestos['gravada'] ?? datos['gravada']),
+    'base_exonerada': numeroDe(impuestos['exonerada'] ?? datos['exonerada']),
+    'base_inafecta': numeroDe(impuestos['inafecta'] ?? datos['inafecta']),
+    'descuento': numeroDe(datos['descuento']),
+    'isc': numeroDe(impuestos['isc'] ?? datos['isc']),
+    'igv': numeroDe(impuestos['igv'] ?? datos['igv']),
+    'otros_tributos': numeroDe(datos['otros_tributos']),
+    'impuesto_bolsa': numeroDe(datos['impuesto_bolsa']),
+    'total': numeroDe(impuestos['total'] ?? datos['total']),
+    'retencion': numeroDe(datos['retencion']),
+    'detalle_items': items,
+    'glosa': '${comprobante['glosa'] ?? ''}',
+    'tipo_doc_identidad': '${datos['tipo_doc_identidad'] ?? ''}',
+    'medio_pago': '${datos['medio_pago'] ?? ''}',
+    'apellido1': '${datos['apellido1'] ?? ''}',
+    'apellido2': '${datos['apellido2'] ?? ''}',
+    'nombre': '${datos['nombre'] ?? ''}',
+    'cod_tasa': '${datos['cod_tasa'] ?? ''}',
+    'ind_ret': '${datos['ind_ret'] ?? ''}',
+  };
+}
+
 /// Acepta "2024-05-13", "13/05/2024" o "13-05-2024" y devuelve dd/mm/aaaa.
 String? _fecha(String crudo) {
   final s = crudo.trim();

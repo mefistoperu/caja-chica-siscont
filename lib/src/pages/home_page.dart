@@ -6,7 +6,7 @@ import '../models/comprobante.dart';
 import '../models/movimiento_caja.dart';
 import '../models/tipo_movimiento_caja.dart';
 import '../models/usuario.dart';
-import '../services/groq_servicio.dart';
+import '../services/analisis_comprobante.dart';
 import '../services/mapeo_comprobante.dart';
 import '../services/ws_cliente.dart';
 import '../storage/archivos.dart';
@@ -35,7 +35,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final GroqServicio _ia = const GroqServicio();
+  final AnalisisComprobante _ia = const AnalisisComprobante();
   late List<Comprobante> _items = Repositorio.i.comprobantes;
   bool _ocupado = false;
   String _mensaje = '';
@@ -174,7 +174,7 @@ class _HomePageState extends State<HomePage> {
       ruta = await Repositorio.i.copiarArchivo(nombre, bytes);
       setState(() => _mensaje = 'Leyendo el comprobante con IA...');
 
-      final resultado = await _ia.analizar(ruta);
+      final resultado = await _ia.analizar(bytes: bytes, nombre: nombre);
       final c = comprobanteDesdeIa(
         resultado.datos,
         archivo: ruta,

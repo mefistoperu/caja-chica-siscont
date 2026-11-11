@@ -241,4 +241,71 @@ class WsCliente {
   }
 
   Future<Map<String, dynamic>> estadisticas() => _llamar('estadisticas');
+
+  /// Envia un comprobante (foto o PDF) al backend para que lo lea con la IA
+  /// configurada en el servidor. Devuelve el objeto `comprobante` de
+  /// `analizaradjunto`; la clave de Groq nunca viaja al telefono.
+  Future<Map<String, dynamic>> analizarAdjunto({
+    required List<int> bytes,
+    required String nombre,
+  }) async {
+    final uri = Uri.parse('${AppConfig.wsUrl}?op=analizaradjunto');
+    final solicitud = http.MultipartRequest('POST', uri);
+    solicitud.headers['Accept'] = 'application/json';
+    if (AppConfig.wsToken.isNotEmpty) {
+      solicitud.headers['Authorization'] = 'Bearer ${AppConfig.wsToken}';
+    }
+    solicitud.files.add(
+      http.MultipartFile.fromBytes(
+        'adjunto',
+        bytes,
+        filename: nombre.isEmpty ? 'comprobante' : nombre,
+      ),
+    );
+
+    http.Response r;
+    try {
+      final flujo = await solicitud.send().timeout(
+        const Duration(seconds: 180),
+      );
+      r = await http.Response.fromStream(flujo).timeout(
+        const Duration(seconds: 30),
+      );
+    } catch (_) {
+      throw const WsException(
+        'No se pudo enviar el archivo al servidor. Revise la conexion e intente de nuevo.',
+      );
+    }
+
+    Map<String, dynamic> cuerpo;
+    try {
+      final decodificado = jsonDecode(utf8.decode(r.bodyBytes));
+      if (decodificado is! Map) throw const FormatException();
+      cuerpo = decodificado.cast<String, dynamic>();
+    } catch (_) {
+      throw WsException(
+        'Respuesta no valida del servidor (HTTP ${r.statusCode}).',
+      );
+    }
+    if (cuerpo['ok'] != true) {
+      final mensaje = '${cuerpo['mensaje'] ?? 'No se pudo analizar el archivo.'}';
+      throw WsException(
+        mensaje.isEmpty ? 'No se pudo analizar el archivo.' : mensaje,
+        r.statusCode,
+      );
+    }
+
+    final comprobante = cuerpo['comprobante'];
+    if (comprobante is! Map) {
+      throw const WsException('El servidor no devolvio el analisis del archivo.');
+    }
+    final analisis = comprobante.cast<String, dynamic>();
+    if (analisis['ok'] == false) {
+      final mensaje = '${analisis['mensaje'] ?? ''}'.trim();
+      throw WsException(
+        mensaje.isEmpty ? 'No se pudo leer el comprobante.' : mensaje,
+      );
+    }
+    return analisis;
+  }
 }
